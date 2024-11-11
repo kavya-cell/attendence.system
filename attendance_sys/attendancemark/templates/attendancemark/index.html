@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Marking System</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+    }
+
+    .header {
+      width: 100%;
+      text-align: center;
+      font-size: 2.5em;
+      font-weight: bold;
+      padding: 20px 0;
+      background-color: #be55b9;
+      color: white;
+    }
+
+    .content {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      padding: 20px;
+    }
+
+    .camera-feed {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      background-color: #dddddd4f;
+      border: 2px solid #2f7bad;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">Attendance Marking System</div>
+
+  <div class="content">
+    <div class="camera-feed">
+      <video id="webcam" autoplay></video>
+    </div>
+  </div>
+
+  <script>
+    
+    const videoElement = document.getElementById('webcam');
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          videoElement.srcObject = stream;
+        })
+        .catch((error) => {
+          console.error("Error accessing the webcam:", error);
+        });
+    } else {
+      alert("Webcam not supported by your browser.");
+    }
+  </script>
+
+</body>
+</html>

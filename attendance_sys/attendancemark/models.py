@@ -8,7 +8,7 @@ class Student(models.Model):
     name = models.CharField(max_length=100)
     branch = models.CharField(max_length=40)
     year = models.IntegerField()
-    image = models.ImageField()
+    image = models.ImageField(blank=False)
 
 #Table to mark the attendance of students.
 class Attendance(models.Model):

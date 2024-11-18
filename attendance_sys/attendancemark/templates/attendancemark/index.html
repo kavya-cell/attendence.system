@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Attendance Marking System</title>
-  <link rel="stylesheet" href="style.css">
+  <!-- <link rel="stylesheet" href="style.css"> -->
   <style>
     body {
       margin: 0;
@@ -54,15 +54,23 @@
 
   <div class="content">
     <div class="camera-feed">
-      <video id="webcam" autoplay></video>
+      <video id="webcam" width="640" height="480" autoplay></video>
+      <canvas id="can" width="640" height="480"></canvas>
     </div>
   </div>
+
+  <h1>Student Info</h1>
+  <ul id="students-list"></ul>
+
+
 
   <script>
     
     const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('can');
+    const context = canvasElement.getContext('2d');
 
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    // if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ video: true })
         .then((stream) => {
           videoElement.srcObject = stream;
@@ -70,10 +78,33 @@
         .catch((error) => {
           console.error("Error accessing the webcam:", error);
         });
-    } else {
-      alert("Webcam not supported by your browser.");
-    }
-  </script>
 
+
+    function sendtodjango(){
+      context.drawImage(video, 0, 0, 640, 480);
+      const imageData = canvasElement.toDataURL('image/jpeg');
+      fetch("/", {
+        method: 'POST',
+        headers: {
+          'Content-Type' : 'application/json',
+        },
+        body:JSON.stringify({image:imageData}),
+      })
+      .then(response => response.json())
+      .then((data) => {
+      const studentsList = document.getElementById("students-list");
+      studentsList.innerHTML = "";
+      data.recognized_dude.forEach((student) => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `${student.name} (Roll No: ${student.rollnum})`;
+        studentsList.appendChild(listItem);
+      });
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+}
+setInterval(sendtodjango, 10);
+  </script>
 </body>
 </html>

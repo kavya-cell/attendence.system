@@ -11,33 +11,35 @@ from .models import Student, Attendance
 # Create your views here.
 
 def recognition():
-    video_capture = cv2.VideoCapture(0)
+    
     students = Student.objects.all()
     known_students_encoding = []
     for student in students:
         simageload = face_recognition.load_image_file(student.image)
         student_encoding = face_recognition.face_encodings(simageload)[0]
-        known_students_encoding.append({'encoding': student_encoding,
-                                        'name': student.name})
-        recognized_dude = None
+        known_students_encoding.append(student_encoding)
+    recognized_dude = []
+    
+    video_capture = cv2.VideoCapture(0)
+    while True:
+        ret, frame = video_capture.read()
 
-        while True:
-            ret, frame = video_capture.read()
-            face_locations = face_recognition.face_locations(frame)
-            face_encodings = face_recognition.face_encodings(frame, face_locations)
-            for i in face_encodings:
-                matches = face_recognition.compare_faces(known_students_encoding, i)
-                if True in matches: 
-                    match_index = matches.index(True)
-                    recognized_dude.append({
-                        'name': student.name,
-                        'rollno': student.rollnum,
-                    })
-                    break
+        face_locations = face_recognition.face_locations(frame)
+        face_encodings = face_recognition.face_encodings(frame, face_locations)
+        for (top, right, bottom, left), i in zip(face_locations, face_encodings):
+            matches = face_recognition.compare_faces(known_students_encoding, i)
+            name = "Unknown"
+            if True in matches: 
+                match_index = matches.index(True)
+                name = recognized_dude[match_index]
+                
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+            cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
-            cv2.imshow("video", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+
+        cv2.imshow("video", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
     
     video_capture.release()
     cv2.destroyAllWindows()
@@ -50,13 +52,11 @@ def index(request):
     if request.method == 'POST':
         recognized_dude = recognition()
         if recognized_dude:
-            data = {
-                'name' : recognized_dude.name
-            }
+            data = recognized_dude.name
             return JsonResponse({'success' : True, 'person': data})
         else: 
             return JsonResponse({'success': False, 'message':'Couldnt recognize face'})
-    return render(request, 'attendancemark/index.html')
+    return render(request, 'attendancemark/index2.html')
 
 # def recognize(request):
 #     if request.method == 'POST':

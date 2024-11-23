@@ -3,37 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Marking</title>
-    <script>
-        function startRecognition(){
-            fetch('/', {
-                method: 'POST',
-                headers: {'X-CSRFToken': '{{csrf_token}}'}
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success){
-                    const student = data.student;
-                    document.getElementById("result").innerHTML =`
-                    <h3>Recognized Person: </h3>
-                    <p><strong>Name: </strong> ${student.name}</p>`;
+    <title>Attendance Marking System</title>
 
-                }
-                else
-                {
-                    document.getElementById("result").innerHTML = `<p>${data.message}</p>`;
-                }
-            })
-            .catch(error => {
-                console.error("Error: ", error);
-                document.getElementById("result").innerHTML = `<p>Something Went wrong. </p>`;
-            });
+    <style>
+        body {
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: Arial, sans-serif;
+          height: 100vh;
         }
-    </script>
+    
+        .header {
+          width: 100%;
+          text-align: center;
+          font-size: 2.5em;
+          font-weight: bold;
+          padding: 20px 0;
+          background-color: #be55b9;
+          color: white;
+        }
+    
+        .content {
+          display: flex;
+          width: 100%;
+          justify-content: space-between;
+          padding: 20px;
+        }
+    
+        .camera-feed {
+          position: relative;
+          width: 300px;
+          height: 300px;
+          background-color: #dddddd4f;
+          border: 2px solid #2f7bad;
+        }
+    
+        video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        #details {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            
+        }
+      </style>
+
 </head>
 <body>
-    <h1>Attendance Marking System</h1>
-    <button onclick="startRecognition()">Mark</button>
-    <div id = "result"></div>
+    <div class="header">Attendance Marking System</div>
+    <div class="content">
+        <div class="camera-feed"></div>
+            <video autoplay="true" id="webcam-feed" width="640" height="480"></video>
+            <img id="video-stream" src="{% url 'video_feed' %}" style="max-width: 100%; height: auto;" />
+        </div>
+    </div>
+    <div id="details">
+        <h2>Recognized Student:</h2>
+        <p><strong>Name:</strong> <span id="student-name"></span></p>
+        <p><strong>Branch:</strong> <span id="student-branch"></span></p>
+        <p><strong>Year:</strong> <span id="student-year"></span></p>
+        <p><strong>Roll Number:</strong> <span id="student-roll"></span></p>
+    </div>
+    <script>
+        async function checkRecognition() {
+            const response = await fetch("/get_recognized_student/", { // Sends POST request to the same page
+                method: "GET",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}", // CSRF protection
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                
+                document.getElementById("student-name").textContent = data.student.name;
+                document.getElementById("student-branch").textContent = data.student.branch;
+                document.getElementById("student-year").textContent = data.student.year;
+                document.getElementById("student-roll").textContent = data.student.rollnum;
+                document.getElementById("details").style.display = "block"; // Show the details div
+            } else {
+                alert(data.message || "Unknown error occurred");
+            }
+        }
+
+        // Automatically call recognition check on page load
+        window.onload = checkRecognition;
+    </script>
 </body>
 </html>

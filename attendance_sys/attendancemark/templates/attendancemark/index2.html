@@ -73,7 +73,7 @@
     </div>
     <script>
         async function checkRecognition() {
-            const response = await fetch("/get_recognized_student/", { // Sends POST request to the same page
+            const response = await fetch("/get_recognized_student/", {
                 method: "GET",
                 headers: {
                     "X-CSRFToken": "{{ csrf_token }}", // CSRF protection
@@ -88,7 +88,7 @@
                 document.getElementById("student-branch").textContent = data.student.branch;
                 document.getElementById("student-year").textContent = data.student.year;
                 document.getElementById("student-roll").textContent = data.student.rollnum;
-                document.getElementById("details").style.display = "block"; // Show the details div
+                document.getElementById("details").style.display = "block"; 
             } else {
                 alert(data.message || "Unknown error occurred");
             }

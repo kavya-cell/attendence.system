@@ -37,18 +37,18 @@ def recognition():
     
     video_capture = cv2.VideoCapture(0)
 
-    w = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-    h = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    new_w = 400
-    new_h = 400
-
+    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 400)
+    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400)
+    frame_count = 0
     try: 
         while True:
-            ret, big_frame = video_capture.read()
+            ret, frame = video_capture.read()
+            frame_count += 1
+            if frame_count % 5 != 0:  # Skip 4 out of every 5 frames
+                continue
             if not ret:
                 break
-            
-            frame = cv2.resize(big_frame, (new_w, new_h))
+        
 
 
             face_locations = face_recognition.face_locations(frame)
@@ -57,7 +57,7 @@ def recognition():
             status = False
 
             for (top, right, bottom, left), i in zip(face_locations, face_encodings):
-                matches = face_recognition.compare_faces(known_students_encoding, i)
+                matches = face_recognition.compare_faces(known_students_encoding, i, tolerance=0.5)
                 name = "Unknown"
                 if True in matches: 
                     status = True

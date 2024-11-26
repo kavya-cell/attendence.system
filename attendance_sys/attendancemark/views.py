@@ -36,11 +36,20 @@ known_students_encoding, known_student_details = knownEncodings()
 def recognition():
     
     video_capture = cv2.VideoCapture(0)
+
+    w = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    new_w = 400
+    new_h = 400
+
     try: 
         while True:
-            ret, frame = video_capture.read()
+            ret, big_frame = video_capture.read()
             if not ret:
                 break
+            
+            frame = cv2.resize(big_frame, (new_w, new_h))
+
 
             face_locations = face_recognition.face_locations(frame)
             face_encodings = face_recognition.face_encodings(frame, face_locations)

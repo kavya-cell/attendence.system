@@ -7,6 +7,7 @@
 - cmake<br>
 - dlib <br>
 - face-recognition <br>
+- mediapipe <br>
 - django <br>
 - visual studio code, or a similar text editor <br>
 

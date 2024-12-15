@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Marking System</title>
+    <style>
+        body {
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: Arial, sans-serif;
+          height: 100vh;
+        }
+    
+        .header {
+          width: 100%;
+          text-align: center;
+          font-size: 2.5em;
+          font-weight: bold;
+          padding: 20px 0;
+          background-color: #be55b9;
+          color: white;
+        }
+        #video {
+            width: 400px;
+            height: 300px;
+            border: 1px solid black;
+        }
+        #canvas {
+            display: none;
+        }
+        #details {
+            margin-top: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            position: absolute;
+            left: 0px;
+            width: 300px;
+            
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">Attendance Marking System</div>
+    <video id="video" autoplay></video>
+    <button id="captureBtn">Recognize Face</button>
+    <div id="details">
+        <h2>Recognized Student:</h2>
+        <p><strong>Name:</strong> <span id="student-name"></span></p>
+        <p><strong>Branch:</strong> <span id="student-branch"></span></p>
+        <p><strong>Year:</strong> <span id="student-year"></span></p>
+        <p><strong>Roll Number:</strong> <span id="student-roll"></span></p>
+        <p><strong><span id = "attendance"></span></strong></p>
+    </div>
+
+    <script>
+        const video = document.getElementById("video");
+        const captureBtn = document.getElementById("captureBtn");
+
+        // Access the user's webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((err) => {
+                console.error("Error accessing webcam:", err);
+            });
+
+        // Capture a frame and send it to the server
+        captureBtn.addEventListener("click", () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth || 400;
+            canvas.height = video.videoHeight || 300;
+            const ctx = canvas.getContext("2d");
+
+            // Draw the current frame from the video
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const frameData = canvas.toDataURL("image/jpeg");
+
+            // Send the frame to the backend for recognition
+            fetch("/recognize-face/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": "{{ csrf_token }}"  // Ensure this is rendered in the template
+                },
+                body: `frame=${encodeURIComponent(frameData)}`
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    const detailsDiv = document.getElementById("details");
+                    if (data.success) {
+                        document.getElementById("student-name").textContent = data.student.name;
+                        document.getElementById("student-branch").textContent = data.student.branch;
+                        document.getElementById("student-year").textContent = data.student.year;
+                        document.getElementById("student-roll").textContent = data.student.rollnum;
+                        document.getElementById("attendance").textContent = data.message;
+                        detailsDiv.style.display = "block"; 
+                    } else {
+                        alert(data.message || "No face recognized.");
+                        detailsDiv.style.display = "none";
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                    alert("An error occurred while processing the request.");
+                });
+        });
+    </script>
+</body>
+</html>

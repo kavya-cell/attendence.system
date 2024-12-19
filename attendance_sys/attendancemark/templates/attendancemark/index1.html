@@ -1,37 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Marking System</title>
     <style>
         body {
-          margin: 0;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          font-family: Arial, sans-serif;
-          height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            height: 100vh;
         }
-    
+
         .header {
-          width: 100%;
-          text-align: center;
-          font-size: 2.5em;
-          font-weight: bold;
-          padding: 20px 0;
-          background-color: #be55b9;
-          color: white;
+            width: 100%;
+            text-align: center;
+            font-size: 2.5em;
+            font-weight: bold;
+            padding: 20px 0;
+            background-color: #be55b9;
+            color: white;
         }
+
         #video {
             width: 400px;
             height: 300px;
             border: 1px solid black;
         }
+
         #canvas {
             display: none;
         }
+
         #details {
             margin-top: 100px;
             padding: 10px;
@@ -40,23 +44,74 @@
             position: absolute;
             left: 0px;
             width: 300px;
-            
+        }
+        .attendance-container {
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            position: fixed;
+            right: 20px;
+            top: 100px;
+            max-width: 400px;
+            max-height: 80vh; /* Restrict height to 70% of viewport */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        table {
+            border-collapse: collapse;
+            width: auto;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
         }
 
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
 </head>
+
 <body>
+    <div id="hour-start-time" style="position: absolute; top: 10px; right: 10px; font-size: 16px; font-weight: bold;">
+        <span id="hour-time"></span>
+    </div>
     <div class="header">Attendance Marking System</div>
     <video id="video" autoplay></video>
-    <button id="captureBtn">Recognize Face</button>
+    <button id="captureBtn" type="button" class="btn btn-outline-secondary"> <svg xmlns="http://www.w3.org/2000/svg"
+            width="23" height="23" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16">
+            <path
+                d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z" />
+        </svg> Mark Attendance</button>
     <div id="details">
         <h2>Recognized Student:</h2>
         <p><strong>Name:</strong> <span id="student-name"></span></p>
         <p><strong>Branch:</strong> <span id="student-branch"></span></p>
         <p><strong>Year:</strong> <span id="student-year"></span></p>
         <p><strong>Roll Number:</strong> <span id="student-roll"></span></p>
-        <p><strong><span id = "attendance"></span></strong></p>
+        <p><strong><span id="attendance"></span></strong></p>
     </div>
+    <div class="attendance-container" style="float: right; width: 40%;">
+        <h3>Attendance Details</h3>
+        <table id="attendance-table" border="1" style="width: 100%; text-align: left;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Roll Number</th>
+                    <th>Present</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+              
+            </tbody>
+        </table>
+    </div>
+
 
     <script>
         const video = document.getElementById("video");
@@ -70,7 +125,17 @@
             .catch((err) => {
                 console.error("Error accessing webcam:", err);
             });
-
+            function updateHourStartTime() {
+        fetch('/start-day/')  // Optional: Create a separate API to get the current hour start time
+            .then(response => response.json())
+            .then(data => {
+                const now = new Date();
+                const timeString = now.toLocaleString(); // Format the current time
+                document.getElementById("hour-time").textContent = timeString;
+            })
+            .catch(error => console.error('Error fetching hour start time:', error));
+    }
+    updateHourStartTime();
         // Capture a frame and send it to the server
         captureBtn.addEventListener("click", () => {
             const canvas = document.createElement("canvas");
@@ -101,9 +166,9 @@
                         document.getElementById("student-year").textContent = data.student.year;
                         document.getElementById("student-roll").textContent = data.student.rollnum;
                         document.getElementById("attendance").textContent = data.message;
-                        detailsDiv.style.display = "block"; 
+                        detailsDiv.style.display = "block";
                     } else {
-                        alert(data.message || "No face recognized.");
+                        alert(data.message );
                         detailsDiv.style.display = "none";
                     }
                 })
@@ -112,6 +177,33 @@
                     alert("An error occurred while processing the request.");
                 });
         });
+        function fetchAttendance() {
+        fetch('/get-attendance/')  // The URL for the Django endpoint
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector('#attendance-table tbody');
+                tableBody.innerHTML = ''; // Clear existing rows
+
+                data.attendance.forEach(student => {
+                    const row = document.createElement('tr');
+
+                    row.innerHTML = `
+                        <td>${student.name}</td>
+                        <td>${student.roll_number}</td>
+                        <td>${student.present ? "Yes" : "No"}</td>
+                        <td>${student.attendance_percentage}%</td>
+                    `;
+
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Error fetching attendance:', error));
+    }
+
+    // Fetch attendance data every 60 seconds
+    setInterval(fetchAttendance, 60000);
+    fetchAttendance(); // Initial fetch
     </script>
 </body>
+
 </html>

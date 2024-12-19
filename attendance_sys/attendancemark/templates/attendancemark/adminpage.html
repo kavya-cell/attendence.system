@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Page</title>
+    <style>
+        .start-day-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .start-day-btn:disabled {
+            background-color: gray;
+        }
+    </style>
+</head>
+<body>
+    <h1>Admin Page</h1>
+    <button id="start-day-btn" class="start-day-btn">Start Day</button>
+
+    <script>
+        const startDayButton = document.getElementById("start-day-btn");
+
+        startDayButton.addEventListener("click", () => {
+            fetch('/start-day/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    startDayButton.disabled = true;
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error starting the day:', error));
+        });
+    </script>
+</body>
+</html>

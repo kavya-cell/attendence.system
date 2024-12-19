@@ -1,0 +1,21 @@
+# Ignore Python bytecode
+*.pyc
+__pycache__/
+
+# Ignore environment variables
+.env
+
+# Ignore dataset directory
+/dataset/
+
+""" 
+Go to the below link to download images for the dataset: 
+https://www.kaggle.com/datasets/omkargurav/face-mask-dataset?resource=download
+Then create a folder named "dataset" under the main project directory -> attendance_sys
+and then move the with_mask and without_mask folders in the dataset folder.
+"""
+x.pickle
+y.pickle
+
+db.sqlite3
+C:\Users\Navan\Desktop\attendence.system\attendance_sys\db.sqlite3

@@ -1,4 +1,4 @@
-
+import threading
 import cv2
 from datetime import datetime
 from django.shortcuts import render
@@ -10,6 +10,12 @@ import base64
 from .models import Student, Attendance
 from queue import Queue
 from django.utils.timezone import now, timedelta
+import keras
+from django.db.models import Count
+
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+mask_model = keras.models.load_model("C:/Users/Navan/Desktop/attendence.system/attendance_sys/mask_detection/masks.h5")
 
 # Preload known encodings
 def knownEncodings():
@@ -45,28 +51,53 @@ def recognize_face(request):
             np_arr = np.frombuffer(frame_data, np.uint8)
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
             face_locations = face_recognition.face_locations(frame)
             face_encodings = face_recognition.face_encodings(frame, face_locations)
 
-            for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-                matches = face_recognition.compare_faces(known_students_encoding, face_encoding, tolerance=0.45)
-                name = "Unknown"
+            roi_status=0
+            for (x, y, w, h) in faces:
+                gray_frame = gray_frame[y:y+h, x:x+w]
+                roi_color = frame[y:y+h, x:x+w]
+                det_face = face_cascade.detectMultiScale(gray_frame)
+                if len(faces) == 0:
+                    return JsonResponse({"success": False, "message": "No faces detected"})
+                else:
+                    for (ex, ey, ew, eh) in det_face:
+                        face_roi = roi_color[ey:ey+eh, ex:ex+ew]
+                        roi_status = 1
+            final_flag = 0
+            if roi_status== 1:
+                final = cv2.resize(face_roi, (224, 224))
+                final = np.expand_dims(final, axis = 0)
+                final = final/255.0
+                final_flag = 1
 
-                if True in matches:
-                    match_index = matches.index(True)
-                    recognized_dude = known_student_details[match_index]
-                    recognized_dude_queue.put(recognized_dude)
-                    attendance_status = Mark_Att({"success": True, "student": recognized_dude})
-                    # Return name and details
+            if final_flag ==1:
+                predictions = mask_model.predict(final)
+                if predictions[0][0] < 0.5:
                     return JsonResponse({
-                        "success": True,
-                        "student": recognized_dude,
-                        "box": [top, right, bottom, left],
-                        "attendance_status": attendance_status,
-                        "message": attendance_status.get("message", "")
-
+                        "success":False,
+                        "message": "Please Remove your mask"
                     })
+                else:
+                    face_encoding = face_encodings[0]
+                    matches = face_recognition.compare_faces(known_students_encoding, face_encoding, tolerance=0.45)
 
+                    if True in matches:
+                        match_index = matches.index(True)
+                        recognized_dude = known_student_details[match_index]
+                        recognized_dude_queue.put(recognized_dude)
+                        attendance_status = Mark_Att({"success": True, "student": recognized_dude})
+                        return JsonResponse({
+                            "success": True,
+                            "student": recognized_dude,
+                            "attendance_status": attendance_status,
+                            "message": attendance_status.get("message", "")
+                        })
+                    
             return JsonResponse({"success": False, "message": "No matching face found"})
 
         except Exception as e:
@@ -84,7 +115,7 @@ def Mark_Att(response):
             return {"success": False, "message": "Student not found"}
 
         # Check for recent attendance within 30 seconds
-        thirty_seconds_ago = now() - timedelta(seconds=30)
+        thirty_seconds_ago = now() - timedelta(seconds=60)
         recent_attendance = Attendance.objects.filter(
             rollnum=student,  # Use the Student instance here
             date__gte=thirty_seconds_ago,
@@ -104,117 +135,83 @@ def Mark_Att(response):
     return {"success": False, "message": "Face not recognized"}
     
 
+def get_attendance_details(request):
+    # Fetch all students
+    students = Student.objects.all()
+    attendance_data = []
+
+    for student in students:
+        total_classes = Attendance.objects.filter(rollnum=student).count()
+        attended_classes = Attendance.objects.filter(rollnum=student, status=True).count()
+        attendance_percentage = (attended_classes / total_classes * 100) if total_classes > 0 else 0
+
+        # Append data for each student
+        attendance_data.append({
+            "name": student.name,
+            "roll_number": student.rollnum,
+            "present": Attendance.objects.filter(rollnum=student, date__gte=now() - timedelta(minutes=1), status=True).exists(),
+            "attendance_percentage": round(attendance_percentage, 2)
+        })
+
+    return JsonResponse({"attendance": attendance_data})
+
+attendance_tracking_active = False
+
+def start_day(request):
+    global attendance_tracking_active
+    if request.method == "POST":
+        if attendance_tracking_active:
+            return JsonResponse({"success": False, "message": "Day already started!"})
+        
+        attendance_tracking_active = True
+
+        # Start the attendance tracking thread
+        threading.Thread(target=track_attendance).start()
+
+        return JsonResponse({"success": True, "message": "Day started! Attendance tracking is active."})
+    
+    return JsonResponse({"success": False, "message": "Invalid request method."})
+
+
+def track_attendance():
+    """
+    Track attendance every hour (1 minute for testing) for the next 4 hours.
+    """
+    global attendance_tracking_active
+    try:
+        for i in range(4):  # Loop for 4 hours
+            current_time = now()
+
+            # Get all students and check their presence
+            students = Student.objects.all()
+            for student in students:
+                # Check if the student is marked present within this hour
+                present = Attendance.objects.filter(
+                    rollnum=student, 
+                    date__gte=current_time - timedelta(minutes=1),
+                    date__lte=current_time,
+                    status=True
+                ).exists()
+
+                if not present:
+                    # Mark the student absent for this hour
+                    Attendance.objects.create(
+                        rollnum=student,
+                        date=current_time,
+                        status=False  # Absent
+                    )
+            
+            # Wait 1 minute before the next hour (testing purposes)
+            threading.Event().wait(60)
+        
+    except Exception as e:
+        print(f"Error in attendance tracking: {e}")
+    
+    # Stop tracking after 4 hours
+    attendance_tracking_active = False
+
 def index(request):
     return render(request, 'attendancemark/index1.html')
 
-
-
-
-# from django.shortcuts import render, HttpResponse
-# import cv2, json, base64
-# from django.http import JsonResponse, StreamingHttpResponse
-# from django.views.decorators.csrf import csrf_exempt
-# import face_recognition
-# from queue import Queue
-# from .models import Student, Attendance
-
-
-# # Create your views here.
-
-# '''Separated the process of encoding known students faces from the main recognition code as this doesnt need to be
-# executed everytime a new frame is sent from a frontend, which makes the program dead slow and buggy'''
-# def knownEncodings():
-#     students = Student.objects.all()
-#     known_students_encoding = []
-#     known_student_details = []
-#     for student in students:
-#         simageload = face_recognition.load_image_file(student.image.path)
-#         student_encoding = face_recognition.face_encodings(simageload)[0]
-#         known_students_encoding.append(student_encoding)
-#         known_student_details.append({
-#             "name":student.name,
-#             "branch":student.branch,
-#             "year": student.year,
-#             "rollnum":student.rollnum
-#         })
-
-#     return known_students_encoding, known_student_details
-
-# #Made this queue global as it is required in almost all the functions
-# #I changed it from a list to a Queue since the FIFO nature of queue comes in handy while trying to retrieve the most recent person recognized.
-# recognized_dude_queue = Queue()
-# known_students_encoding, known_student_details = knownEncodings()
-
-# def recognition():
-    
-#     video_capture = cv2.VideoCapture(0)
-
-#     video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 400)
-#     video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400)
-#     frame_count = 0
-#     try: 
-#         while True:
-#             ret, frame = video_capture.read()
-#             frame_count += 1
-#             if frame_count % 5 != 0:  # Skip 4 out of every 5 frames
-#                 continue
-#             if not ret:
-#                 break
-        
-
-
-#             face_locations = face_recognition.face_locations(frame)
-#             face_encodings = face_recognition.face_encodings(frame, face_locations)
-
-#             status = False
-
-#             for (top, right, bottom, left), i in zip(face_locations, face_encodings):
-#                 matches = face_recognition.compare_faces(known_students_encoding, i, tolerance=0.5)
-#                 name = "Unknown"
-#                 if True in matches: 
-#                     status = True
-#                     match_index = matches.index(True)
-#                     recognized_dude = known_student_details[match_index]
-#                     name = recognized_dude["name"]
-                    
-#                     if recognized_dude_queue.empty():
-#                         recognized_dude_queue.put(recognized_dude)
-#                     else:
-#                         recognized_dude_queue.get()
-#                         recognized_dude_queue.put(recognized_dude)
-#                 #Below two lines are to draw a rectangle around the face of the person in the video feed and write their name over the box.    
-#                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-#                 cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
-
-#             if not status and not recognized_dude_queue.empty():
-#                 recognized_dude_queue.get()
-
-#             _, jpeg_frame = cv2.imencode('.jpg', frame)
-#             frame_bytes = jpeg_frame.tobytes()
-#             yield (b'--frame\r\n'
-#                 b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-#     finally: 
-#         video_capture.release()
-
-        
-
-# @csrf_exempt
-# def video_feed(request):
-#     """Stream video feed to the frontend."""
-#     return StreamingHttpResponse(
-#         recognition(),
-#         content_type='multipart/x-mixed-replace; boundary=frame'
-#     )
-
-
-# #This function is supposed to return the details of the person who was recognized most recently. 
-# def get_recognized_student(request):
-
-#     if not recognized_dude_queue.empty():
-#         recognized_dude = recognized_dude_queue.get()
-#         return JsonResponse({'success': True, 'student': recognized_dude})
-#     return JsonResponse({'success': False, 'message': 'No face recognized yet'})
-
-
-# def index(request):
-#     return render(request, 'attendancemark/index2.html')
+def admin_page(request):
+    return render(request, 'attendancemark/adminpage.html')

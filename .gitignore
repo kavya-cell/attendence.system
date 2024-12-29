@@ -5,3 +5,5 @@ __pycache__/
 
 x.pickle
 y.pickle
+
+db.sqlite3

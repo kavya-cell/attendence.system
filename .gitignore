@@ -7,3 +7,7 @@ x.pickle
 y.pickle
 
 db.sqlite3
+
+/dataset/
+
+attendance_sys/dataset/

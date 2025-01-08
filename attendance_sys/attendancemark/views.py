@@ -17,7 +17,7 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fronta
 
 mask_model = keras.models.load_model("C:/Users/Navan/Desktop/attendence.system/attendance_sys/mask_detection/masks.h5")
 
-# Preload known encodings
+# Function to find encodings of students in the database
 def knownEncodings():
     students = Student.objects.all()
     known_students_encoding = []
@@ -114,10 +114,9 @@ def Mark_Att(response):
         except Student.DoesNotExist:
             return {"success": False, "message": "Student not found"}
 
-        # Check for recent attendance within 30 seconds
         thirty_seconds_ago = now() - timedelta(seconds=60)
         recent_attendance = Attendance.objects.filter(
-            rollnum=student,  # Use the Student instance here
+            rollnum=student,  
             date__gte=thirty_seconds_ago,
             status=True
         )
@@ -126,7 +125,7 @@ def Mark_Att(response):
             return {"success": True, "message": "Attendance already marked"}
         else:
             Attendance.objects.create(
-                rollnum=student,  # Use the Student instance here
+                rollnum=student,  
                 date=now(),
                 status=True
             )
@@ -136,7 +135,6 @@ def Mark_Att(response):
     
 
 def get_attendance_details(request):
-    # Fetch all students
     students = Student.objects.all()
     attendance_data = []
 
@@ -145,7 +143,6 @@ def get_attendance_details(request):
         attended_classes = Attendance.objects.filter(rollnum=student, status=True).count()
         attendance_percentage = (attended_classes / total_classes * 100) if total_classes > 0 else 0
 
-        # Append data for each student
         attendance_data.append({
             "name": student.name,
             "roll_number": student.rollnum,
@@ -165,7 +162,6 @@ def start_day(request):
         
         attendance_tracking_active = True
 
-        # Start the attendance tracking thread
         threading.Thread(target=track_attendance).start()
 
         return JsonResponse({"success": True, "message": "Day started! Attendance tracking is active."})
@@ -179,13 +175,11 @@ def track_attendance():
     """
     global attendance_tracking_active
     try:
-        for i in range(4):  # Loop for 4 hours
+        for i in range(4):  
             current_time = now()
 
-            # Get all students and check their presence
             students = Student.objects.all()
             for student in students:
-                # Check if the student is marked present within this hour
                 present = Attendance.objects.filter(
                     rollnum=student, 
                     date__gte=current_time - timedelta(minutes=1),
@@ -194,20 +188,18 @@ def track_attendance():
                 ).exists()
 
                 if not present:
-                    # Mark the student absent for this hour
                     Attendance.objects.create(
                         rollnum=student,
                         date=current_time,
-                        status=False  # Absent
+                        status=False  # False = absent
                     )
             
-            # Wait 1 minute before the next hour (testing purposes)
+            #60 seconds = 1Hr for testing purposes hehe
             threading.Event().wait(60)
         
     except Exception as e:
         print(f"Error in attendance tracking: {e}")
     
-    # Stop tracking after 4 hours
     attendance_tracking_active = False
 
 def index(request):

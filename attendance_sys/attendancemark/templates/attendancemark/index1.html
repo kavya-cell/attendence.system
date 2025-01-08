@@ -86,7 +86,7 @@
             width="23" height="23" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16">
             <path
                 d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z" />
-        </svg> Mark Attendance</button>
+        </svg> Mark Attendance</button><!--Tick icon will be displayed near mark attendance-->
     <div id="details">
         <h2>Recognized Student:</h2>
         <p><strong>Name:</strong> <span id="student-name"></span></p>
@@ -112,12 +112,10 @@
         </table>
     </div>
 
-
     <script>
         const video = document.getElementById("video");
         const captureBtn = document.getElementById("captureBtn");
 
-        // Access the user's webcam
         navigator.mediaDevices.getUserMedia({ video: true })
             .then((stream) => {
                 video.srcObject = stream;
@@ -126,34 +124,32 @@
                 console.error("Error accessing webcam:", err);
             });
             function updateHourStartTime() {
-        fetch('/start-day/')  // Optional: Create a separate API to get the current hour start time
+        fetch('/start-day/')  
             .then(response => response.json())
             .then(data => {
                 const now = new Date();
-                const timeString = now.toLocaleString(); // Format the current time
+                const timeString = now.toLocaleString(); 
                 document.getElementById("hour-time").textContent = timeString;
             })
             .catch(error => console.error('Error fetching hour start time:', error));
     }
     updateHourStartTime();
-        // Capture a frame and send it to the server
+
         captureBtn.addEventListener("click", () => {
             const canvas = document.createElement("canvas");
             canvas.width = video.videoWidth || 400;
             canvas.height = video.videoHeight || 300;
             const ctx = canvas.getContext("2d");
 
-            // Draw the current frame from the video
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const frameData = canvas.toDataURL("image/jpeg");
 
-            // Send the frame to the backend for recognition
             fetch("/recognize-face/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
-                    "X-CSRFToken": "{{ csrf_token }}"  // Ensure this is rendered in the template
+                    "X-CSRFToken": "{{ csrf_token }}"  
                 },
                 body: `frame=${encodeURIComponent(frameData)}`
             })
@@ -178,11 +174,11 @@
                 });
         });
         function fetchAttendance() {
-        fetch('/get-attendance/')  // The URL for the Django endpoint
+        fetch('/get-attendance/') 
             .then(response => response.json())
             .then(data => {
                 const tableBody = document.querySelector('#attendance-table tbody');
-                tableBody.innerHTML = ''; // Clear existing rows
+                tableBody.innerHTML = ''; 
 
                 data.attendance.forEach(student => {
                     const row = document.createElement('tr');
@@ -200,9 +196,9 @@
             .catch(error => console.error('Error fetching attendance:', error));
     }
 
-    // Fetch attendance data every 60 seconds
-    setInterval(fetchAttendance, 60000);
-    fetchAttendance(); // Initial fetch
+    //To Fetch attendance data every 10 seconds
+    setInterval(fetchAttendance, 10000);
+    fetchAttendance(); 
     </script>
 </body>
 
